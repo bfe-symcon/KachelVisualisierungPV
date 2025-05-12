@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-class KachelVisualisierung extends IPSModule
+class KachelVisualisierungPV extends IPSModule
 {
     public function Create()
     {

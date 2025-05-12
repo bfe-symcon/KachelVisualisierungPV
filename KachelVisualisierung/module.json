@@ -1,0 +1,17 @@
+{
+  "id": "{5E356B29-A78A-F1E5-B839-3EEB0062DD11}",
+  "name": "KachelVisualisierung",
+  "type": 3,
+  "vendor": "Benutzer",
+  "version": "1.0",
+  "author": "OpenAI",
+  "url": "https://example.com",
+  "compatibility": {
+    "version": "6.0"
+  },
+  "aliases": ["Live-Daten Kachel"],
+  "parentRequirements": [],
+  "childRequirements": [],
+  "implemented": ["{12345678-1234-1234-1234-123456789ABC}"],
+  "prefix": "KV"
+}

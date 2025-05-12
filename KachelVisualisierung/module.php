@@ -35,13 +35,21 @@ class KachelVisualisierungPV extends IPSModule
 
     private function GetLiveData(): array
     {
+        $getVal = function(int $varID, int $precision = 0) {
+            if ($varID > 0 && @IPS_VariableExists($varID)) {
+                return round(@GetValue($varID), $precision);
+            }
+            return '-';
+        };
+    
         return [
-            'pv' => round(GetValue($this->ReadPropertyInteger('PVVariableID')), 2),
-            'haus' => round(GetValue($this->ReadPropertyInteger('HausVariableID')), 0),
-            'akku' => round(GetValue($this->ReadPropertyInteger('AkkuVariableID')), 0),
-            'netz' => round(GetValue($this->ReadPropertyInteger('NetzVariableID')), 0)
+            'pv' => $getVal($this->ReadPropertyInteger('PVVariableID'), 2),
+            'haus' => $getVal($this->ReadPropertyInteger('HausVariableID')),
+            'akku' => $getVal($this->ReadPropertyInteger('AkkuVariableID')),
+            'netz' => $getVal($this->ReadPropertyInteger('NetzVariableID'))
         ];
     }
+
 
     public function UpdateDisplay()
     {

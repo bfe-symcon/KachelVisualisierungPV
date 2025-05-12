@@ -173,7 +173,7 @@ class KachelVisualisierungPV extends IPSModule
         if (!IPS_InstanceExists(@IPS_GetObjectIDByIdent("HookScript", $this->InstanceID))) {
             $scriptID = IPS_CreateScript(0);
             IPS_SetName($scriptID, "KachelHook_{$this->InstanceID}");
-            IPS_SetIdent($scriptID, "HookScript");
+            IPS_SetIdent($scriptID, "HookScript_" . $this->InstanceID);
             IPS_SetParent($scriptID, $this->InstanceID);
             IPS_SetScriptContent($scriptID, '<?php KachelVisualisierung_GetLiveJSON(' . $this->InstanceID . '); ?>');
         } else {

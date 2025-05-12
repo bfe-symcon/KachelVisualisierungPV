@@ -11,7 +11,7 @@ class KachelVisualisierungPV extends IPSModule
         $this->RegisterPropertyInteger('HausVariableID', 0);
         $this->RegisterPropertyInteger('AkkuVariableID', 0);
         $this->RegisterPropertyInteger('NetzVariableID', 0);
-        $this->RegisterTimer('UpdateHTML', 0, 'KV_UpdateDisplay($_IPS['TARGET']);');
+        $this->RegisterTimer('UpdateHTML', 0, 'KV_UpdateDisplay($_IPS["TARGET"]);');
     }
 
     public function ApplyChanges()

@@ -11,7 +11,6 @@ class KachelVisualisierungPV extends IPSModule
         $this->RegisterPropertyInteger('HausVariableID', 0);
         $this->RegisterPropertyInteger('AkkuVariableID', 0);
         $this->RegisterPropertyInteger('NetzVariableID', 0);
-        $this->RegisterTimer('UpdateHTML', 0, 'KV_UpdateDisplay($_IPS["TARGET"]);');
 
         // HTML Ausgabevariable registrieren
         $this->RegisterVariableString("HTMLBox", "Visualisierung", "~HTMLBox", 0);
@@ -20,7 +19,7 @@ class KachelVisualisierungPV extends IPSModule
     public function ApplyChanges()
     {
         parent::ApplyChanges();
-        $this->SetTimerInterval('UpdateHTML', 3000);
+        $this->RegisterHook();
         $this->UpdateDisplay();
     }
 
@@ -51,6 +50,12 @@ class KachelVisualisierungPV extends IPSModule
             'akku' => $getVal($this->ReadPropertyInteger('AkkuVariableID')),
             'netz' => $getVal($this->ReadPropertyInteger('NetzVariableID'))
         ];
+    }
+
+    public function GetLiveJSON()
+    {
+        header('Content-Type: application/json');
+        echo json_encode($this->GetLiveData());
     }
 
     public function UpdateDisplay()
@@ -116,26 +121,39 @@ class KachelVisualisierungPV extends IPSModule
             <div class='kachel-data'>
                 <div class='kachel-item'>
                     <div class='kachel-icon sun'>☀️</div>
-                    <div class='kachel-value'>{$data['pv']}</div>
+                    <div class='kachel-value'><span id='kv-pv'>{$data['pv']}</span></div>
                     <div class='kachel-unit'>kW</div>
                 </div>
                 <div class='kachel-item'>
                     <div class='kachel-icon home'>🏠</div>
-                    <div class='kachel-value'>{$data['haus']}</div>
+                    <div class='kachel-value'><span id='kv-haus'>{$data['haus']}</span></div>
                     <div class='kachel-unit'>W</div>
                 </div>
                 <div class='kachel-item'>
                     <div class='kachel-icon battery'>🔋</div>
-                    <div class='kachel-value'>{$data['akku']}%</div>
+                    <div class='kachel-value'><span id='kv-akku'>{$data['akku']}%</span></div>
                     <div class='kachel-unit'>Batterie</div>
                 </div>
                 <div class='kachel-item'>
                     <div class='kachel-icon grid'>⚡</div>
-                    <div class='kachel-value'>{$data['netz']}</div>
+                    <div class='kachel-value'><span id='kv-netz'>{$data['netz']}</span></div>
                     <div class='kachel-unit'>W</div>
                 </div>
             </div>
-        </div>";
+        </div>
+        <script>
+        function updateKachel() {
+            fetch('/hook/KachelVisualisierung/{$this->InstanceID}')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('kv-pv').innerText = data.pv;
+                    document.getElementById('kv-haus').innerText = data.haus;
+                    document.getElementById('kv-akku').innerText = data.akku + '%';
+                    document.getElementById('kv-netz').innerText = data.netz;
+                });
+        }
+        setInterval(updateKachel, 3000);
+        </script>";
 
         $this->SetBuffer("HTML", $html);
 
@@ -148,5 +166,24 @@ class KachelVisualisierungPV extends IPSModule
     public function GetHTML()
     {
         return $this->GetBuffer("HTML");
+    }
+
+    private function RegisterHook()
+    {
+        if (!IPS_InstanceExists(@IPS_GetObjectIDByIdent("HookScript", $this->InstanceID))) {
+            $scriptID = IPS_CreateScript(0);
+            IPS_SetName($scriptID, "KachelHook_{$this->InstanceID}");
+            IPS_SetIdent($scriptID, "HookScript");
+            IPS_SetParent($scriptID, $this->InstanceID);
+            IPS_SetScriptContent($scriptID, '<?php KachelVisualisierung_GetLiveJSON(' . $this->InstanceID . '); ?>');
+        } else {
+            $scriptID = IPS_GetObjectIDByIdent("HookScript", $this->InstanceID);
+        }
+
+        if (IPS_HookExists("/hook/KachelVisualisierung/{$this->InstanceID}")) {
+            IPS_UnregisterHook("/hook/KachelVisualisierung/{$this->InstanceID}");
+        }
+
+        IPS_RegisterHook("/hook/KachelVisualisierung/{$this->InstanceID}", $scriptID);
     }
 }

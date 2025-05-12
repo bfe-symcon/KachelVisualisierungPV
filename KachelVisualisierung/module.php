@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-class KachelVisualisierungPV extends IPSModule
+class KachelVisualisierung extends IPSModule
 {
     public function Create()
     {
@@ -180,10 +180,28 @@ class KachelVisualisierungPV extends IPSModule
             $scriptID = IPS_GetObjectIDByIdent("HookScript", $this->InstanceID);
         }
 
-        if (IPS_HookExists("/hook/KachelVisualisierung/{$this->InstanceID}")) {
-            IPS_UnregisterHook("/hook/KachelVisualisierung/{$this->InstanceID}");
-        }
+        $webhookID = @IPS_GetInstanceIDByName("WebHook Control", 0);
+        if ($webhookID && IPS_InstanceExists($webhookID)) {
+            $hooks = json_decode(IPS_GetProperty($webhookID, 'Hooks'), true);
+            $newHook = "/hook/KachelVisualisierung/{$this->InstanceID}";
+            $exists = false;
 
-        IPS_RegisterHook("/hook/KachelVisualisierung/{$this->InstanceID}", $scriptID);
+            foreach ($hooks as &$hook) {
+                if ($hook['Hook'] == $newHook) {
+                    $hook['TargetID'] = $scriptID;
+                    $exists = true;
+                }
+            }
+
+            if (!$exists) {
+                $hooks[] = [
+                    'Hook' => $newHook,
+                    'TargetID' => $scriptID
+                ];
+            }
+
+            IPS_SetProperty($webhookID, 'Hooks', json_encode($hooks));
+            IPS_ApplyChanges($webhookID);
+        }
     }
 }

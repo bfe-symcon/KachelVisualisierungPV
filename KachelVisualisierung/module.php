@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-class KachelVisualisierungPV extends IPSModule
+class KachelVisualisierung extends IPSModule
 {
     public function Create()
     {
@@ -12,6 +12,9 @@ class KachelVisualisierungPV extends IPSModule
         $this->RegisterPropertyInteger('AkkuVariableID', 0);
         $this->RegisterPropertyInteger('NetzVariableID', 0);
         $this->RegisterTimer('UpdateHTML', 0, 'KV_UpdateDisplay($_IPS["TARGET"]);');
+
+        // HTML Ausgabevariable registrieren
+        $this->RegisterVariableString("HTMLBox", "Visualisierung", "~HTMLBox", 0);
     }
 
     public function ApplyChanges()
@@ -41,7 +44,7 @@ class KachelVisualisierungPV extends IPSModule
             }
             return '-';
         };
-    
+
         return [
             'pv' => $getVal($this->ReadPropertyInteger('PVVariableID'), 2),
             'haus' => $getVal($this->ReadPropertyInteger('HausVariableID')),
@@ -49,7 +52,6 @@ class KachelVisualisierungPV extends IPSModule
             'netz' => $getVal($this->ReadPropertyInteger('NetzVariableID'))
         ];
     }
-
 
     public function UpdateDisplay()
     {
@@ -136,6 +138,11 @@ class KachelVisualisierungPV extends IPSModule
         </div>";
 
         $this->SetBuffer("HTML", $html);
+
+        $varID = @$this->GetIDForIdent("HTMLBox");
+        if ($varID !== false) {
+            SetValue($varID, $html);
+        }
     }
 
     public function GetHTML()

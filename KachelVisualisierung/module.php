@@ -125,26 +125,25 @@ class KachelVisualisierungPV extends IPSModule
             IPS_SetName($scriptID, 'KachelHook_' . $this->InstanceID);
         }
     
-        // 2) Code für das Hook-Skript mit require_once
-        //    Passe hier den Pfad auf Deinen Modul-Ordner an:
-        $modulePath = IPS_GetKernelDir() . '/var/lib/symcon/modules/KachelVisualisierungPV/KachelVisualisierung/module.php';
+        // 2) Code für das Hook-Skript (Pfad auf Eure module.php anpassen!)
+        $modulePath = IPS_GetKernelDir() . '/modules/bfe-symcon.KachelVisualisierungPV/module.php';
         $code = <<<PHP
     <?php
     require_once '$modulePath';
-    // Modul-Klasse nachladen und JSON ausgeben
     (new KachelVisualisierungPV({$this->InstanceID}))->GetLiveJSON();
     ?>
     PHP;
         IPS_SetScriptContent($scriptID, $code);
     
-        // 3) WebHook Control registrieren
+        // 3) WebHook Control suchen – existiert sie nicht, abbrechen und loggen
         $webhookID = @IPS_GetInstanceIDByName('WebHook Control', 0);
         if (!$webhookID || !IPS_InstanceExists($webhookID)) {
-            // Fallback: WebHook Control automatisch anlegen
-            $webhookID = IPS_CreateInstance('{FE9D2264-81C6-4CE5-AF01-09CD9B0212E3}');
-            IPS_SetName($webhookID, 'WebHook Control');
+            IPS_LogMessage('KachelVisualisierungPV', 'WebHook Control nicht gefunden – bitte Modul installieren und Instanz anlegen.');
+            return;
         }
-        $hooks    = json_decode(IPS_GetProperty($webhookID, 'Hooks'), true);
+    
+        // 4) Bestehende Hooks laden und unseren Eintrag anlegen/aktualisieren
+        $hooks    = json_decode(IPS_GetProperty($webhookID, 'Hooks'), true) ?: [];
         $hookPath = '/hook/KachelVisualisierungPV/' . $this->InstanceID;
         $exists   = false;
         foreach ($hooks as &$h) {
@@ -160,9 +159,11 @@ class KachelVisualisierungPV extends IPSModule
                 'TargetID' => $scriptID
             ];
         }
+    
         IPS_SetProperty($webhookID, 'Hooks', json_encode($hooks));
         IPS_ApplyChanges($webhookID);
     }
+
 
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)

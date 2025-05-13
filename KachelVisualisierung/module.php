@@ -7,11 +7,13 @@ class KachelVisualisierungPV extends IPSModule
     public function Create()
     {
         parent::Create();
+        // Konfigurations-Properties
         $this->RegisterPropertyInteger('PVVariableID', 0);
         $this->RegisterPropertyInteger('HausVariableID', 0);
         $this->RegisterPropertyInteger('AkkuVariableID', 0);
         $this->RegisterPropertyInteger('NetzVariableID', 0);
 
+        // HTML-Ausgabe-Variable
         $this->RegisterVariableString('HTMLBox', 'Visualisierung', '~HTMLBox', 0);
     }
 
@@ -19,13 +21,13 @@ class KachelVisualisierungPV extends IPSModule
     {
         parent::ApplyChanges();
 
-        // einmaliges Rendern des HTML-Gerüsts
+        // Einmaliges Rendern des HTML-Gerüsts
         $this->RenderTemplate();
 
-        // Hook für JSON-Daten immer aktuell halten
+        // Hook-Skript für JSON erzeugen/aktualisieren
         $this->RegisterHook();
 
-        // Bei Änderung nur den Hook JSON aktualisieren
+        // Bei Änderung nur den Hook-JSON updaten lassen
         foreach ([
             $this->ReadPropertyInteger('PVVariableID'),
             $this->ReadPropertyInteger('HausVariableID'),
@@ -38,11 +40,32 @@ class KachelVisualisierungPV extends IPSModule
         }
     }
 
-    // --------------------------------------------------------------
-    // Dieses Template schreiben wir nur ein einziges Mal in ApplyChanges
+    public function GetConfigurationForm()
+    {
+        return json_encode([
+            'elements' => [
+                ['type'=>'SelectVariable','name'=>'PVVariableID',   'caption'=>'PV-Leistung'],
+                ['type'=>'SelectVariable','name'=>'HausVariableID', 'caption'=>'Hausverbrauch'],
+                ['type'=>'SelectVariable','name'=>'AkkuVariableID', 'caption'=>'Batterie-Stand'],
+                ['type'=>'SelectVariable','name'=>'NetzVariableID', 'caption'=>'Netzbezug']
+            ]
+        ]);
+    }
+
     private function RenderTemplate()
     {
-        $html = "<style>/* ... dein CSS ... */</style>
+        $html = "<style>
+            .kachel-wrapper { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f9f9fb; border-radius:16px; padding:16px; max-width:600px; margin:auto; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+            .kachel-header { font-weight:600; font-size:20px; margin-bottom:12px; }
+            .kachel-data { display:flex; justify-content:space-around; text-align:center; }
+            .kachel-item { flex:1; }
+            .kachel-icon { width:64px; height:64px; margin:auto; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:8px; color:white; font-size:24px; }
+            .sun { background:#fdd835; color:#fff176; }
+            .home { background:#64b5f6; }
+            .battery { background:#4caf50; }
+            .grid { background:#546e7a; }
+            .kachel-value { font-size:18px; font-weight:600; }
+        </style>
         <div class='kachel-wrapper'>
             <div class='kachel-header'>Live Daten</div>
             <div class='kachel-data'>
@@ -53,24 +76,22 @@ class KachelVisualisierungPV extends IPSModule
             </div>
         </div>
         <script>
-        const hookUrl = '/hook/KachelVisualisierung/' + {$this->InstanceID};
-        async function updateKachel(){
-            let res = await fetch(hookUrl);
-            let d   = await res.json();
-            document.getElementById('kv-pv').innerText   = d.pv;
-            document.getElementById('kv-haus').innerText = d.haus;
-            document.getElementById('kv-akku').innerText = d.akku + '%';
-            document.getElementById('kv-netz').innerText = d.netz;
-        }
-        updateKachel();
-        setInterval(updateKachel, 3000);
+            const hookUrl = '/hook/KachelVisualisierungPV/' + {$this->InstanceID};
+            async function updateKachel(){
+                let res = await fetch(hookUrl);
+                let d   = await res.json();
+                document.getElementById('kv-pv').innerText   = d.pv;
+                document.getElementById('kv-haus').innerText = d.haus;
+                document.getElementById('kv-akku').innerText = d.akku + '%';
+                document.getElementById('kv-netz').innerText = d.netz;
+            }
+            updateKachel();
+            setInterval(updateKachel, 3000);
         </script>";
 
         $this->SetValue('HTMLBox', $html);
     }
-    // --------------------------------------------------------------
 
-    // liefert nur noch JSON, kein SetValue mehr!
     public function GetLiveJSON()
     {
         header('Content-Type: application/json');
@@ -82,7 +103,7 @@ class KachelVisualisierungPV extends IPSModule
         $get = function(int $id, int $prec=0) {
             return $id>0 && @IPS_VariableExists($id)
                 ? round(@GetValue($id), $prec)
-                : 0;
+                : '–';
         };
         return [
             'pv'   => $get($this->ReadPropertyInteger('PVVariableID'), 2),
@@ -96,7 +117,7 @@ class KachelVisualisierungPV extends IPSModule
     {
         $ident    = 'HookScript_' . $this->InstanceID;
         $scriptID = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
-        if ($scriptID===false) {
+        if ($scriptID === false) {
             $scriptID = IPS_CreateScript(0);
             IPS_SetParent($scriptID, $this->InstanceID);
             IPS_SetIdent($scriptID, $ident);
@@ -106,12 +127,9 @@ class KachelVisualisierungPV extends IPSModule
         IPS_SetScriptContent($scriptID, $code);
     }
 
-    // nur JSON-Updates triggern, kein RenderTemplate()
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
         parent::MessageSink($TimeStamp, $SenderID, $Message, $Data);
-        if ($Message === VM_UPDATE) {
-            // nichts weiter tun – die JS holt sich die neuen Werte selbst
-        }
+        // wir brauchen hier nichts zu tun – die JS-Funktion holt sich die Daten selbst
     }
 }

@@ -115,6 +115,7 @@ class KachelVisualisierungPV extends IPSModule
 
     private function RegisterHook()
     {
+        // 1) Hook-Skript anlegen/finden
         $ident    = 'HookScript_' . $this->InstanceID;
         $scriptID = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
         if ($scriptID === false) {
@@ -123,9 +124,39 @@ class KachelVisualisierungPV extends IPSModule
             IPS_SetIdent($scriptID, $ident);
             IPS_SetName($scriptID, 'KachelHook_' . $this->InstanceID);
         }
+        // PHP-Code, der die Live-JSON-Ausgabe erzeugt
         $code = '<?php (new KachelVisualisierungPV(' . $this->InstanceID . '))->GetLiveJSON(); ?>';
         IPS_SetScriptContent($scriptID, $code);
+    
+        // 2) Hook in der WebHook Control registrieren
+        $webhookID = @IPS_GetInstanceIDByName('WebHook Control', 0);
+        if ($webhookID && IPS_InstanceExists($webhookID)) {
+            // vorhandene Hooks auslesen
+            $hooks = json_decode(IPS_GetProperty($webhookID, 'Hooks'), true);
+            $hookPath = '/hook/KachelVisualisierungPV/' . $this->InstanceID;
+    
+            // prüfen, ob der Hook schon existiert
+            $exists = false;
+            foreach ($hooks as &$h) {
+                if ($h['Hook'] === $hookPath) {
+                    $h['TargetID'] = $scriptID;
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $hooks[] = [
+                    'Hook'     => $hookPath,
+                    'TargetID' => $scriptID
+                ];
+            }
+    
+            // wieder zurückschreiben und aktivieren
+            IPS_SetProperty($webhookID, 'Hooks', json_encode($hooks));
+            IPS_ApplyChanges($webhookID);
+        }
     }
+
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {

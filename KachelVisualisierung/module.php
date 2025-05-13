@@ -112,7 +112,7 @@ class KachelVisualisierungPV extends IPSModule
             'netz' => $get($this->ReadPropertyInteger('NetzVariableID'))
         ];
     }
-
+    
     private function RegisterHook()
     {
         // 1) Hook-Skript anlegen/finden
@@ -124,37 +124,44 @@ class KachelVisualisierungPV extends IPSModule
             IPS_SetIdent($scriptID, $ident);
             IPS_SetName($scriptID, 'KachelHook_' . $this->InstanceID);
         }
-        // PHP-Code, der die Live-JSON-Ausgabe erzeugt
-        $code = '<?php (new KachelVisualisierungPV(' . $this->InstanceID . '))->GetLiveJSON(); ?>';
+    
+        // 2) Code für das Hook-Skript mit require_once
+        //    Passe hier den Pfad auf Deinen Modul-Ordner an:
+        $modulePath = IPS_GetKernelDir() . '/var/lib/symcon/modules/KachelVisualisierungPV/KachelVisualisierung/module.php';
+        $code = <<<PHP
+    <?php
+    require_once '$modulePath';
+    // Modul-Klasse nachladen und JSON ausgeben
+    (new KachelVisualisierungPV({$this->InstanceID}))->GetLiveJSON();
+    ?>
+    PHP;
         IPS_SetScriptContent($scriptID, $code);
     
-        // 2) Hook in der WebHook Control registrieren
+        // 3) WebHook Control registrieren
         $webhookID = @IPS_GetInstanceIDByName('WebHook Control', 0);
-        if ($webhookID && IPS_InstanceExists($webhookID)) {
-            // vorhandene Hooks auslesen
-            $hooks = json_decode(IPS_GetProperty($webhookID, 'Hooks'), true);
-            $hookPath = '/hook/KachelVisualisierungPV/' . $this->InstanceID;
-    
-            // prüfen, ob der Hook schon existiert
-            $exists = false;
-            foreach ($hooks as &$h) {
-                if ($h['Hook'] === $hookPath) {
-                    $h['TargetID'] = $scriptID;
-                    $exists = true;
-                    break;
-                }
-            }
-            if (!$exists) {
-                $hooks[] = [
-                    'Hook'     => $hookPath,
-                    'TargetID' => $scriptID
-                ];
-            }
-    
-            // wieder zurückschreiben und aktivieren
-            IPS_SetProperty($webhookID, 'Hooks', json_encode($hooks));
-            IPS_ApplyChanges($webhookID);
+        if (!$webhookID || !IPS_InstanceExists($webhookID)) {
+            // Fallback: WebHook Control automatisch anlegen
+            $webhookID = IPS_CreateInstance('{FE9D2264-81C6-4CE5-AF01-09CD9B0212E3}');
+            IPS_SetName($webhookID, 'WebHook Control');
         }
+        $hooks    = json_decode(IPS_GetProperty($webhookID, 'Hooks'), true);
+        $hookPath = '/hook/KachelVisualisierungPV/' . $this->InstanceID;
+        $exists   = false;
+        foreach ($hooks as &$h) {
+            if ($h['Hook'] === $hookPath) {
+                $h['TargetID'] = $scriptID;
+                $exists = true;
+                break;
+            }
+        }
+        if (!$exists) {
+            $hooks[] = [
+                'Hook'     => $hookPath,
+                'TargetID' => $scriptID
+            ];
+        }
+        IPS_SetProperty($webhookID, 'Hooks', json_encode($hooks));
+        IPS_ApplyChanges($webhookID);
     }
 
 
